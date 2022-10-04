@@ -713,5 +713,5 @@ async fn hello() -> impl Responder {
 一个项目的使用还需要网络管理，权限认证，性能测试等。
 
 本文所有代码保存在
-> xxxx
+> https://github.com/snack8310/shorty-url
 
