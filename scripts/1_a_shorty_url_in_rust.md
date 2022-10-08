@@ -123,6 +123,7 @@ actix-web = "4"
 ```
 
 参照官方案例，复制两段代码到 main.rs
+
 ```
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
@@ -140,6 +141,7 @@ async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
 }
 ```
+
 ```
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -198,6 +200,7 @@ Cargo build或者Cargo run的时候，可能会存在下载速度比较慢的情
 > /shorty-url/.cargo/config.toml
 
 文件内容如下：
+
 ```
 [source.crates-io]
 # replace-with = 'ustc'
@@ -228,11 +231,13 @@ notes:
 > SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
 
 [dependencies]增加
+
 ```
 sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "mysql" ] }
 ```
 
 main方法中增加
+
 ```
 
     let pool = MySqlPoolOptions::new()
@@ -247,6 +252,8 @@ main方法中增加
     println!("row is {ret}");
 
 ```
+
+
 <!-- url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty" -->
 
 - 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
@@ -313,6 +320,7 @@ notes:
 我们在src的同级别增加一个config文件夹，用来提供生产环境的路径替换。里面增加一个Settings.toml文件
 
 Settings.toml
+
 ```
 [server]
 ip = "0.0.0.0"
@@ -345,6 +353,7 @@ serde是Rust里著名的一个序列化反序列化的crate，这里使用解析
   - pool_size
 
 setting.rs
+
 ```
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
@@ -363,6 +372,7 @@ impl Settings {
 想要使用配置文件，需要在main函数中引入mod
 
 main.rs
+
 ```
 mod settings;
 
@@ -416,6 +426,7 @@ async fn main() -> Result<(), sqlx::Error> {
 
 现在我们修改一个web请求
 
+
 ```
 #[get("/")]
 async fn hello(pool: web::Data<MySqlPool>) -> impl Responder {
@@ -444,6 +455,7 @@ async fn test_db_connect(data: Data<MySqlPool>) -> Result<i64, sqlx::Error> {
 ```
 
 运行看一下效果
+
 ```
 > curl 127.0.0.1:8000
 150%                                  
@@ -461,6 +473,7 @@ notes:
 错误对象采用泛型，支持序列化的trait的泛型结构即可
 
 api_result.rs
+
 ```
 use serde::Serialize;
 
@@ -490,6 +503,7 @@ impl<T: Serialize> ApiResult<T> {
 ```
 
 main.rs 中引用
+
 ```
 mod api_result;
 ```
@@ -533,6 +547,7 @@ nanoid = "0.4.0"
 ```
 
 api.rs 应用
+
 ```
 use nanoid::nanoid;
 
@@ -543,6 +558,7 @@ use nanoid::nanoid;
 如果使用ORM工具，通常会有另外的数据库类型实体映射，这里不进行扩展。
 
 在从接口类型到存储类型转换中，提供NanoId生成，这里根据业务需要调整生成code长度
+
 
 ```
 #[derive(Deserialize, Clone)]
@@ -567,6 +583,7 @@ impl ApiAddLink {
 ```
 
 step 3: 创建短链接的Handler
+
 ```
 #[post("/create")]
 async fn create_link(link: Json<ApiAddLink>, data: Data<MySqlPool>) -> impl Responder {
@@ -616,7 +633,9 @@ async fn main() -> Result<(), sqlx::Error> {
 }
 
 ```
+
 step 4: Cargo Run 验证结果
+
 ```
 > curl --request POST 'http://127.0.0.1:8000/create' \
 --header 'Content-Type: application/json' \
@@ -634,6 +653,7 @@ notes:
 根据刚才创建的结果，跳转到原始的URL，我们可以采用 domain/<short_code> 的结构
 
 api.rs
+
 ```
 #[get("/{code}")]
 async fn get_from_link(path: Path<String>, data: Data<MySqlPool>) -> impl Responder {
@@ -661,6 +681,7 @@ async fn get_original_url(data: Data<MySqlPool>, code: String) -> Result<String,
 ```
 
 main方法中，增加service引用
+
 ```
 async fn main() -> Result<(), sqlx::Error> {
     // 省略...
@@ -682,6 +703,7 @@ async fn main() -> Result<(), sqlx::Error> {
 ```
 
 Cargo Run 验证结果
+
 ```
 > curl --request GET 'http://127.0.0.1:8000/weBUD'   
 > 
@@ -702,6 +724,7 @@ rust也有比较简单的web端的实现，支撑全栈工程师们的需求。
 这里做个简单的欢迎页面。
 
 Cargo.toml 引入crate
+
 ```
 tera = { version = "1", default-features = false }
 lazy_static = "1.4.0"
@@ -728,6 +751,8 @@ lazy_static! {
 ```
 
 增加templates目录，添加index.html，注意与模板初始化的地址保持一致。
+
+```
 .
 ├── templates
 │   └── index.html
@@ -737,8 +762,10 @@ lazy_static! {
 │   └── *
 └── target
     └── *
+```
 
 index 内容
+
 ```
 <!DOCTYPE html>
 <html>
@@ -754,6 +781,7 @@ index 内容
 ```
 
 修改响应的Response，这里是Index
+
 ```
 #[get("/")]
 async fn index() -> impl Responder {
@@ -771,12 +799,12 @@ async fn index() -> impl Responder {
 
 现在启动后，已经看到使用模板修改后的页面。看起来与Java中的JSP有些相似。如果有更高的端的需求，比如性能，样式，模板等，也有很多解决方案。
 
+清理掉无效的handler和调试中的注释，现在一个短链接创建工具就做完了。
+
 ---
 # at the end
 
 notes:
-
-清理掉无效的handler和调试中的注释，现在一个短链接创建工具就做完了。
 
 强调！！！！
 
