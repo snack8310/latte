@@ -24,7 +24,7 @@ notes:
 ---
 
 
-# Rust Installation
+# Rust Installation & Basic Command
 
 notes:
 
@@ -41,11 +41,6 @@ rustc --version
 cargo --version
 
 ```
----
-
-# Basic Commands
-
-notes:
 
 Cargo是一个Rust的构建和包管理工具，与Golang的mod有些相似。
 
@@ -94,14 +89,11 @@ Hello, world!
 
 notes: 
 
-- 题外话，code命令行。
 - VSCODE 建议的插件：
   - rust-analyzer 官方的，用来替代rust-lang.rust.
-  - Rust Extension Pick 
   - Rust Syntax 高亮语法
-  - Prettier - Code formatter 个人推荐，Rust不像Go，提供了标准化的格式化
-  - crates 
 - 个人选用的插件：提供视频中的效果
+  - Prettier - Code formatter 代码格式化
   - One Dark Pro VSCODE黑色风格
   - Error Lens 实时纠错
   - TabNine AI Autocomplete 自动代码补全
@@ -109,20 +101,17 @@ notes:
 ```
 > code .
 ```
-
 ---
 
 # Install the framework: Actix
 
 notes: 
 
-详细的第三方工具可以参照下面的介绍：
-
-https://course.rs/practice/third-party-libs.html
-
-比较流行的框架有Rocket，Actix-web，axum等等都是可以的。
-选择Actix-web版本，是因为后面与要选的 Sqlx 连接数据库的插件，有更合适的运行时环境。
-如果使用 Diesel 连接数据库的方案，Rocket和Actix都不错，具体到数据库章节有提到。
+> 详细的第三方工具可以参照下面的中文介绍：
+> https://course.rs/practice/third-party-libs.html
+> 比较流行的框架有Rocket，Actix-web，axum等等都是可以的。
+> 选择Actix-web版本，是因为后面与要选的 Sqlx 连接数据库的插件，有更合适的运行时环境。
+> 如果使用 Diesel等连接数据库的方案，Rocket和Actix都不错。
 
 参照 https://actix.rs/ 开始使用Actix
 
@@ -235,15 +224,15 @@ git-fetch-with-cli = true
 
 notes:
 
-- SQLX是一个纯Rust构建的异步的SQL的crate。
-- SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
+> SQLX是一个纯Rust构建的异步的SQL的crate。
+> SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
 
 [dependencies]增加
 ```
 sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "mysql" ] }
 ```
 
-main.rs 增加
+main方法中增加
 ```
 
     let pool = MySqlPoolOptions::new()
@@ -258,8 +247,8 @@ main.rs 增加
     println!("row is {ret}");
 
 ```
-> url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty"
-> 
+<!-- url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty" -->
+
 - 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
 - 修改actix启动，包装错误，并在结尾返回Result类型
 
@@ -286,15 +275,7 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ```
 
----
-
-# finished a web server with mysql connection
-
-notes:
-
-到现在为止，我们完成了一个连接mysql的web服务器的基本功能
-
-后面通过开发短链接的项目，展示配置管理，数据的CRUD，完善一个生产级别的短链接项目。
+完成Mysql的连接
 
 ```
 > cargo run
@@ -306,7 +287,7 @@ row is 150
 
 ---
 
-# vs Diesel
+<!-- # vs Diesel
 
 notes:
 
@@ -317,11 +298,15 @@ notes:
 
 - 构建镜像的场合，可以通过打包连接器或者安装连接器组件
 
----
+--- -->
 
 # settings in config file
 
 notes:
+
+到现在为止，完成了一个连接mysql的web服务器的基本功能
+
+现在开始，完成短链接的基本功能，并调整为一个应用程序的常见结构。
 
 增加服务的环境配置，增加数据库的链接。一般来说，一个项目的开发环境和生产环境是不同的配置，为了更安全和环境隔离，这样的配置是不会在硬编码，并且可以文件覆盖。通常会通过配置文件，或者环境变量提供差异化的配置。
 
