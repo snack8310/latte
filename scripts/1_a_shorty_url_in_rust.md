@@ -32,8 +32,6 @@ notes:
 
 https://www.rust-lang.org/learn/get-started
 
----
-
 ```
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -43,6 +41,7 @@ rustc --version
 cargo --version
 
 ```
+---
 
 # Basic Commands
 
@@ -56,6 +55,7 @@ Cargo是一个Rust的构建和包管理工具，与Golang的mod有些相似。
 - build documentation for your project with <b>cargo doc</b>
 - publish a library to crates.io with <b>cargo publish</b>
 
+---
 
 # Create a Shorty Url Project
 
@@ -88,6 +88,7 @@ notes:
 Hello, world!
 
 ```
+---
 
 # Show Project in VSCODE
 
@@ -108,6 +109,8 @@ notes:
 ```
 > code .
 ```
+
+---
 
 # Install the framework: Actix
 
@@ -181,6 +184,8 @@ async fn main() -> std::io::Result<()> {
 Hello world!%                           
 ```
 
+---
+
 # replace the soucre of crates-io 
 
 notes:
@@ -224,6 +229,8 @@ index = "https://rsproxy.cn/crates.io-index"
 git-fetch-with-cli = true
 ```
 
+---
+
 # Add SQLX to Connect Mysql Server
 
 notes:
@@ -251,7 +258,8 @@ main.rs 增加
     println!("row is {ret}");
 
 ```
-
+> url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty"
+> 
 - 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
 - 修改actix启动，包装错误，并在结尾返回Result类型
 
@@ -278,6 +286,8 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ```
 
+---
+
 # finished a web server with mysql connection
 
 notes:
@@ -293,6 +303,8 @@ notes:
      Running `target/debug/shorty-url`
 row is 150
 ```
+
+---
 
 # vs Diesel
 
@@ -322,7 +334,7 @@ ip = "0.0.0.0"
 port = 8000
 
 [database]
-url= "mysql://admin:sdfcerts4amc@shorty.csmpkxbn1vbi.ap-northeast-1.rds.amazonaws.com/shorty"
+url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty"
 pool=5
 
 ```
@@ -497,6 +509,8 @@ main.rs 中引用
 mod api_result;
 ```
 
+---
+
 # shorty api
 
 notes:
@@ -626,6 +640,8 @@ step 4: Cargo Run 验证结果
 }'
 {"ok":true,"err":null,"data":"weBUD"}%        
 ```
+---
+
 ## redirect to original url
 
 notes:
@@ -687,6 +703,7 @@ Cargo Run 验证结果
 ```
 这个没有任何返回结果，我们需要在浏览器中，看到页面已经跳转到baidu.com
 
+---
 ## welcome page
 
 notes:
@@ -703,7 +720,10 @@ async fn hello() -> impl Responder {
 
 复杂一点的，可以使用Tera Template，这个以后会单独扩展。
 
+---
 # at the end
+
+notes:
 
 清理掉无效的handler和调试中的注释，现在一个短链接创建工具就做完了。
 
@@ -714,3 +734,4 @@ async fn hello() -> impl Responder {
 本文所有代码保存在
 > https://github.com/snack8310/shorty-url
 
+---
