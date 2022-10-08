@@ -704,21 +704,87 @@ Cargo Run 验证结果
 这个没有任何返回结果，我们需要在浏览器中，看到页面已经跳转到baidu.com
 
 ---
-## welcome page
+## full stack developer
 
 notes:
 
-我们可以把做一个简单的index页面，只需要一句话
+rust也有比较简单的web端的实现，支撑全栈工程师们的需求。
+
+这里推荐使用tera template， 纯Rust开发的一个web 
+
+> https://tera.netlify.app/
+
+这里做个简单的欢迎页面。
+
+Cargo.toml 引入crate
+```
+tera = { version = "1", default-features = false }
+lazy_static = "1.4.0"
+```
+
+main.rs增加模板管理
 
 ```
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    pub static ref TEMPLATES: Tera = {
+        let tera = match Tera::new("templates/**/*") { //模板解析地址
+            Ok(t) => t,
+            Err(e) => {
+                println!("Parsing error(s): {}", e);
+                ::std::process::exit(1);
+            }
+        };
+        tera
+    };
+}
+```
+
+增加templates目录，添加index.html，注意与模板初始化的地址保持一致。
+.
+├── templates
+│   └── index.html
+├── Cargo.toml
+├── src
+│   └── main.rs
+│   └── *
+└── target
+    └── *
+
+index 内容
+```
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Shorty-URL</title>
+    </head>
+    <body>
+       <h1>{{content}}</h1>
+    </body>
+</html>
+
+```
+
+修改响应的Response，这里是Index
+```
 #[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Generate a short code for url")
+async fn index() -> impl Responder {
+    let content = "Generate a short code for url";
+    // HttpResponse::Ok().body(content)
+
+    let mut data = Context::new();
+    data.insert("content", content); // 模板文件中的变量
+
+    let rendered = TEMPLATES.render("index.html", &data).unwrap();
+    HttpResponse::Ok().body(rendered)
 }
 
 ```
 
-复杂一点的，可以使用Tera Template，这个以后会单独扩展。
+现在启动后，已经看到使用模板修改后的页面。看起来与Java中的JSP有些相似。如果有更高的端的需求，比如性能，样式，模板等，也有很多解决方案。
 
 ---
 # at the end
@@ -729,9 +795,11 @@ notes:
 
 强调！！！！
 
-请勿直接用于生产环境。一个项目的使用还需要网络管理，权限认证，性能测试等多个因素。
+请勿直接用于生产环境。一个项目的使用还需要网络管理，权限认证，性能测试等多个安全因素。还有更好的目录结构，静态优化，路径管理等可以持续优化。
 
-本文所有代码保存在
+本文以一个完整的web项目作为演示。
+
+所有代码保存在
 > https://github.com/snack8310/shorty-url
 
 ---
