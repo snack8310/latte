@@ -13,13 +13,12 @@
 
 notes:
 
-嗨，大家好，这里是新的一期技术分享。<!-- 周一的下午茶的技术分享视频 -->
+嗨，大家好，今天我们做一期关于Rust的技术分享。<!-- 周一的下午茶的技术分享视频 -->
 
-今天使用Rust构建一个短链接生成的工具，体验Rust语言的应用。
+在视频中，会从0开始，使用Rust构建一个短链接的web服务，
+在开发过程中，体验一个Rust项目的基本的开发流程，使用框架，以及数据库连接等。
 
-我将会展示基本的开发流程，使用框架，数据库连接。
-
-关键字：Shorty, Rust, Actix, Sqlx, Mysql
+关键字：Shorty, Rust, Actix, Sqlx, Mysql, Tera
 
 ---
 
@@ -516,7 +515,6 @@ notes:
 
 - create short code for original url
 - redirect to original url
-- welcome page
 
 ## create short code for original url
 
@@ -711,7 +709,7 @@ Cargo Run 验证结果
 这个没有任何返回结果，我们需要在浏览器中，看到页面已经跳转到baidu.com
 
 ---
-## full stack developer
+# template
 
 notes:
 
