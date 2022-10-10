@@ -284,6 +284,7 @@ Rust的宏的理念是从Lisp语言的，与C的设计是完全不同的。
 
 notes:
 
+Rust预留了
 ---
 
 # 生产力（Productivity）
