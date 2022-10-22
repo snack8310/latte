@@ -260,7 +260,32 @@ notes:
 
 好吧，我承认这个词是我抄的，花了很多时间去理解这个概念。
 
+![[adt.jpg]]
+
+这个词是从Haskell语言特性继承来的，广泛存在与函数式编程语言中。
+
+狭义的思考是枚举/泛型应用的场景。Go语言是1.18之后支持的泛型，没有枚举。Java是JDK5引入的概念（比较古老的故事）。他们是为了支持这种模式而支持的额。Rust则从语言特性就是由ADT+模式匹配构建的。
+
 TODO 深度理解后，再补充这个
+
+```rust
+    enum IpAddr {
+        V4(u8, u8, u8, u8),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(127, 0, 0, 1);
+
+    let loopback = IpAddr::V6(String::from("::1"));
+```
+
+```java
+enum WeekDay {
+    Mon("Monday"),Tue("Tuesday"),Wed("Wednesday"),Thu("Thursday"),Fri("Friday"),Sat("Saturday"),Sun("Sunday");
+}
+```
+
+Rust里面大量场景都是模式匹配，只需要符合Algebraic定义，就可以非常灵活的使用。
 
 ---
 
@@ -275,31 +300,91 @@ C, C++ 还有 Go，很多语言中都有宏的存在。大部分的宏的使用�
 Rust的宏的理念是从Lisp语言的，与C的设计是完全不同的。
 
 可以把Rust宏，理解为一些通用代码生成工具，它的生效时间是在编译中，编译器把宏解析为应用代码，替代重复的开发动作。
-
+ 
 从这个角度说，对于大多数不需要开发宏的使用者来说，似乎可以不需要对它那么恐惧。
 
 ---
 
 ## unsafe
 
+```
+fn main() {
+    let mut num = 5;
+
+    let r1 = &num as *const i32;
+
+    unsafe {
+        println!("r1 is: {}", *r1);
+    }
+}
+```
+
 notes:
 
-Rust预留了
+第二种语言，不强制执行内存安全保障：Unsafe Rust.
+
+它的使用方式与常规Rust预发一致，但它面向使用者，绕过编译器检查，去解决特定的问题。比如系统底层编程，本身就是不安全的，提供了语言的足够的扩展性。
+
+https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html
+
 ---
 
 # 生产力（Productivity）
 
 notes:
 
-虽然官方文档中把生产力工具放在了重要的位置上，例如Cargo的包管理工具，例如像Go语言一样，包装了Test语法，甚至有代码格式化的定义。但我认为这些完全不能媲美性能和可靠性章节的重要程度。
-
-但是，真的，当看到编译器给十分此清晰的错误提示的时候，还是会不由得内心一颤：过去的调试时的困难一幕幕呈现。
+虽然官方文档中把生产力工具放在了重要的位置上，例如Cargo的包管理工具，例如像Go语言一样，包装了Test语法，甚至有代码格式化的定义。
+但我认为这些完全不能媲美性能和可靠性章节的重要程度。
 
 ---
 
 ## Cargo Doc
 
-## Cargo Check
+notes:
+
+```
+cargo doc --open 
+
+```
+
+自动生成系统文档
+
+![[cargo_doc.png]]
+
+## Cargo Check/Build
+
+notes:
+
+但是，真的，当看到编译器给十分此清晰的错误提示的时候，还是会不由得内心一颤：过去的调试时的困难一幕幕呈现。
+
+
+```
+fn main() {
+  let a: i32 = 10;
+  let b: u16 = 100;
+
+  if a < b {
+    println!("Ten is less than one hundred.");
+  }
+}
+```
+
+```
+   Compiling playground v0.0.1 (/playground)
+error[E0308]: mismatched types
+ --> src/main.rs:5:10
+  |
+5 |   if a < b {
+  |          ^ expected `i32`, found `u16`
+  |
+help: you can convert a `u16` to an `i32`
+  |
+5 |   if a < b.into() {
+  |           +++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `playground` due to previous error
+```
 
 # 结论
 
@@ -307,6 +392,8 @@ notes:
 
 由于本人知识有限，还有很多特性没有展示出来，比如一些零开销抽象等等，
 
-Rust的所有语言特性，你会发现均体现在编译环节中
+希望能提供给大家基本的语言印象和语言价值。
+
+如果有任何不清晰的，可以直接跟我留言。
 
 ---
