@@ -354,6 +354,33 @@ serde是Rust里著名的一个序列化反序列化的crate，这里使用解析
 setting.rs
 
 ```
+use config::{Config, ConfigError};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub server: Server,
+    pub database: Database,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Server {
+    pub port: u32,
+    pub ip: String,
+}
+
+impl Server {
+    pub fn get_ip(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Database {
+    pub url: String,
+    pub pool_size: u32,
+}
+
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         const CURRENT_DIR: &str = "./config/Settings.toml";
@@ -535,6 +562,14 @@ CREATE TABLE IF NOT EXISTS `short_link` (
 
 step 2: 根据url创建短链接code
 
+创建Post结构体ApiAddLink，这里使用Json结构，增加数据库存储结构，NewLink，
+
+如果使用ORM工具，通常会有另外的数据库类型实体映射，这里不进行扩展。
+
+在从接口类型到存储类型转换中，提供NanoId生成，这里根据业务需要调整生成code长度
+
+新建api.rs
+
 使用NanoId来创建短链接，具体NanoId的说明，参照
 
 > https://crates.io/crates/nanoid
@@ -544,21 +579,9 @@ step 2: 根据url创建短链接code
 nanoid = "0.4.0"
 ```
 
-api.rs 应用
-
 ```
 use nanoid::nanoid;
 
-```
-
-创建Post结构体ApiAddLink，这里使用Json结构，增加数据库存储结构，NewLink，
-
-如果使用ORM工具，通常会有另外的数据库类型实体映射，这里不进行扩展。
-
-在从接口类型到存储类型转换中，提供NanoId生成，这里根据业务需要调整生成code长度
-
-
-```
 #[derive(Deserialize, Clone)]
 struct NewLink {
     short_code: String,
@@ -598,7 +621,7 @@ async fn insert_into_short_link(
     new_link: NewLink,
 ) -> Result<u64, sqlx::Error> {
     let insert_id = sqlx::query(
-        r#"insert into short_link (short_code,origin_url, enable) values (?, ?, true)"#,
+#         r#"insert into short_link (short_code,origin_url) values (?, ?)"#,
     )
     .bind(new_link.short_code)
     .bind(new_link.original_url)
