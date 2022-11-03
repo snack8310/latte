@@ -9,7 +9,7 @@
 
 ![[rust-logo.png]]
 
-# Building a Shorty Url in RUST
+# Building a Tiny Url in RUST
 
 notes:
 
@@ -18,7 +18,7 @@ notes:
 在视频中，会从0开始，使用Rust构建一个短链接的web服务，
 在开发过程中，体验一个Rust项目的基本的开发流程，使用框架，以及数据库连接等。
 
-关键字：Shorty, Rust, Actix, Sqlx, Mysql, Tera
+关键字：Tiny, Rust, Actix, Sqlx, Mysql, Tera
 
 ---
 
@@ -51,7 +51,7 @@ Cargo是一个Rust的构建和包管理工具，与Golang的mod有些相似。
 
 ---
 
-# Create a Shorty Url Project
+# Create a Tiny Url Project
 
 notes:
 
@@ -61,10 +61,10 @@ notes:
 
 ```
 
-> cargo new shorty-url
-     Created binary (application) `shorty-url` package
+> cargo new tiny-url
+     Created binary (application) `tiny-url` package
 
-> cd shorty-url 
+> cd tiny-url 
 
 > tree
 .
@@ -76,9 +76,9 @@ notes:
     └── *
 
 > cargo run 
-   Compiling shorty-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/shorty-url)
+   Compiling tiny-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/tiny-url)
     Finished dev [unoptimized + debuginfo] target(s) in 2.07s
-     Running `target/debug/shorty-url`
+     Running `target/debug/tiny-url`
 Hello, world!
 
 ```
@@ -163,7 +163,7 @@ async fn main() -> std::io::Result<()> {
 > cargo run
     Blocking waiting for file lock on build directory
     Finished dev [unoptimized + debuginfo] target(s) in 23.60s
-     Running `target/debug/shorty-url`
+     Running `target/debug/tiny-url`
 
 ```
 
@@ -196,7 +196,7 @@ Cargo build或者Cargo run的时候，可能会存在下载速度比较慢的情
 
 个人比较推荐的方案是伴随着项目
 
-> /shorty-url/.cargo/config.toml
+> /tiny-url/.cargo/config.toml
 
 文件内容如下：
 
@@ -253,7 +253,7 @@ main方法中增加
 ```
 
 
-<!-- url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty" -->
+<!-- url = "mysql://admin:sdfcerts4amc@tiny.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny" -->
 
 - 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
 - 修改actix启动，包装错误，并在结尾返回Result类型
@@ -285,9 +285,9 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ```
 > cargo run
-   Compiling shorty-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/shorty-url)
+   Compiling tiny-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/tiny-url)
     Finished dev [unoptimized + debuginfo] target(s) in 5.75s
-     Running `target/debug/shorty-url`
+     Running `target/debug/tiny-url`
 row is 150
 ```
 
@@ -326,7 +326,7 @@ ip = "0.0.0.0"
 port = 8000
 
 [database]
-url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty"
+url = "mysql://admin:sdfcerts4amc@tiny.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny"
 pool=5
 
 ```
@@ -536,26 +536,26 @@ mod api_result;
 
 ---
 
-# shorty api
+# tiny api
 
 notes:
 
-- create short code for original url
+- create tiny code for original url
 - redirect to original url
 
-## create short code for original url
+## create tiny code for original url
 
 notes:
 
 step 1: 数据库中创建一个短链接存储表，可参照DDL
 
 ```
-CREATE TABLE IF NOT EXISTS `short_link` (
+CREATE TABLE IF NOT EXISTS `tiny_link` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `origin_url` varchar(1024) NOT NULL COMMENT '原始链接',
-  `short_code` varchar(10) DEFAULT NULL,
+  `tiny_code` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_shortcode` (`short_code`) USING BTREE
+  UNIQUE KEY `uk_tiny_code` (`tiny_code`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='短链接'
 
 ```
@@ -584,7 +584,7 @@ use nanoid::nanoid;
 
 #[derive(Deserialize, Clone)]
 struct NewLink {
-    short_code: String,
+    tiny_code: String,
     original_url: String,
 }
 #[derive(Deserialize, Clone)]
@@ -596,7 +596,7 @@ impl ApiAddLink {
     fn to_new_link(self) -> NewLink {
         NewLink {
             original_url: self.original_url,
-            short_code: nanoid!(5),  // generate short code 
+            tiny_code: nanoid!(5),  // generate tiny code 
         }
     }
 }
@@ -609,21 +609,21 @@ step 3: 创建短链接的Handler
 #[post("/create")]
 async fn create_link(link: Json<ApiAddLink>, data: Data<MySqlPool>) -> impl Responder {
     let new_link = link.0.to_new_link();
-    let new_code = new_link.short_code.clone();
-    if let Err(e) = insert_into_short_link(data, new_link).await {
+    let new_code = new_link.tiny_code.clone();
+    if let Err(e) = insert_into_tiny_link(data, new_link).await {
         return Json(ApiResult::error(e.to_string()));
     }
     Json(ApiResult::success(Some(new_code)))
 }
 
-async fn insert_into_short_link(
+async fn insert_into_tiny_link(
     data: Data<MySqlPool>,
     new_link: NewLink,
 ) -> Result<u64, sqlx::Error> {
     let insert_id = sqlx::query(
-#         r#"insert into short_link (short_code,origin_url) values (?, ?)"#,
+#         r#"insert into tiny_link (tiny_code,origin_url) values (?, ?)"#,
     )
-    .bind(new_link.short_code)
+    .bind(new_link.tiny_code)
     .bind(new_link.original_url)
     .execute(data.get_ref())
     .await?
@@ -671,7 +671,7 @@ step 4: Cargo Run 验证结果
 
 notes:
 
-根据刚才创建的结果，跳转到原始的URL，我们可以采用 domain/<short_code> 的结构
+根据刚才创建的结果，跳转到原始的URL，我们可以采用 domain/<tiny_code> 的结构
 
 api.rs
 
@@ -693,7 +693,7 @@ async fn get_from_link(path: Path<String>, data: Data<MySqlPool>) -> impl Respon
 }
 
 async fn get_original_url(data: Data<MySqlPool>, code: String) -> Result<String, sqlx::Error> {
-    let row: (String,) = sqlx::query_as("SELECT origin_url from short_link where short_code = ?")
+    let row: (String,) = sqlx::query_as("SELECT origin_url from tiny_link where tiny_code = ?")
         .bind(code)
         .fetch_one(data.get_ref())
         .await?;
@@ -792,7 +792,7 @@ index 内容
 <html>
     <head>
         <meta charset="utf-8">
-        <title>Shorty-URL</title>
+        <title>Tiny-URL</title>
     </head>
     <body>
        <h1>{{content}}</h1>
@@ -806,7 +806,7 @@ index 内容
 ```
 #[get("/")]
 async fn index() -> impl Responder {
-    let content = "Generate a short code for url";
+    let content = "Generate a tiny code for url";
     // HttpResponse::Ok().body(content)
 
     let mut data = Context::new();
@@ -834,6 +834,6 @@ notes:
 本文以一个完整的web项目作为演示。
 
 所有代码保存在
-> https://github.com/snack8310/shorty-url
+> https://github.com/snack8310/tiny-url
 
 ---

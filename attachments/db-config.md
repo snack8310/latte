@@ -1,1 +1,1 @@
-url = "mysql://admin:sdfcerts4amc@shorty.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/shorty"
+url = "mysql://admin:sdfcerts4amc@tiny-url.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny-url"
