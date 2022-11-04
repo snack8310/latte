@@ -222,89 +222,118 @@ git-fetch-with-cli = true
 
 ---
 
-# Add SQLX to Connect Mysql Server
+
+# 增加短链接的API
 
 notes:
 
-> SQLX是一个纯Rust构建的异步的SQL的crate。
-> SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
-
-[dependencies]增加
-
-```
-sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "mysql" ] }
-```
-
-main方法中增加
+我们添加三个短链接API接口，
+1. 根据原始URL生成短链接Code
+2. 根据生成的短链接地址，跳转原始URL
+3. 查询生成的短链接地址
 
 ```
+api
+links.rs
+mod.rs
 
-    let pool = MySqlPoolOptions::new()
-        .max_connections(5)
-        .connect("mysql://user:password@address/schema").await?;
+#[derive(Deserialize, Clone, Debug, Serialize)]
+struct Link {
+    tiny_code: String,
+    origin_url: String,
+}
 
-    let row: (i64,) = sqlx::query_as("SELECT ?")
-        .bind(150_i64)
-        .fetch_one(&pool).await?;
+#[derive(Deserialize, Clone)]
+struct ApiAddLink {
+    origin_url: String,
+}
 
-    let ret = row.0;
-    println!("row is {ret}");
+impl ApiAddLink {
+    fn to_new_link(self) -> Link {
+        Link {
+            tiny_code: nanoid!(5),
+            origin_url: self.origin_url,
+        }
+    }
+}
 
-```
+#[post("/create")]
+async fn create_link(link: Json<ApiAddLink>) -> impl Responder {
+    info!("create_link");
+    let new_link = link.0.to_new_link();
+    let new_code = new_link.tiny_code.clone();
+    // Json(ApiResult::success(Some(new_code)))
+    Json(new_code)
+}
 
+#[get("/{code}")]
+async fn get_from_link(path: Path<String>) -> impl Responder {
+    info!("get_from_link");
+    let url = "http://www.baidu.com";
+    HttpResponse::Found()
+    .append_header((header::LOCATION, url))
+    .finish()
+}
 
-<!-- url = "mysql://admin:sdfcerts4amc@tiny.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny" -->
-
-- 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
-- 修改actix启动，包装错误，并在结尾返回Result类型
-
-```
-
-async fn main() -> Result<(), sqlx::Error> {
-
-    // 这里连接数据库的代码 
-    // ...
-
-    // 这里是启动服务的代码
-    HttpServer::new(|| {
-        App::new()
-            .service(hello)
-            .service(echo)
-            .route("/hey", web::get().to(manual_hello))
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await?;
-
-    Ok(())
+#[get("/links")]
+async fn get_all_links() -> impl Responder {
+    info!("links");
+    let mut links = Vec::new();
+    links.push(Link{tiny_code:String::from("111"), origin_url:String::from("http://www.baidu.com")});
+    links.push(Link{tiny_code:String::from("123"), origin_url:String::from("http://www.google.com")});
+    // Json(ApiResult::success(Some(links)))
+    Json(links)
 }
 
 ```
 
-完成Mysql的连接
-
-```
-> cargo run
-   Compiling tiny-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/tiny-url)
-    Finished dev [unoptimized + debuginfo] target(s) in 5.75s
-     Running `target/debug/tiny-url`
-row is 150
-```
-
----
-
-<!-- # vs Diesel
+# a struct for api result 
 
 notes:
 
-- Diesel 作为ORM使用体验非常好
-- 依赖gcc，需要在宿主机上安装连接器，比如Mysql的场合，需要libmysqlclient for the Mysql backend. 参照如下的说明。
+写一个通用的结构体，提供标准化的数据返回结构，包括返回结果是否成功，成功时的数据，以及不成功时候的错误信息
 
-> https://diesel.rs/guides/getting-started
+数据和错误均采用Option包装，Option和Result是Rust里的重要结构，这个思想在很多语言中都有，后面会考虑单独讲解。
 
-- 构建镜像的场合，可以通过打包连接器或者安装连接器组件
+错误对象采用泛型，支持序列化的trait的泛型结构即可
 
---- -->
+api_result.rs
+
+```
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct ApiResult<T: Serialize> {
+    pub ok: bool,
+    pub err: Option<String>,
+    pub data: Option<T>,
+}
+
+impl<T: Serialize> ApiResult<T> {
+    pub fn success(r: Option<T>) -> ApiResult<T> {
+        ApiResult {
+            ok: true,
+            err: None,
+            data: r,
+        }
+    }
+    pub fn error<E: ToString>(err: E) -> ApiResult<T> {
+        ApiResult {
+            ok: false,
+            err: Some(err.to_string()),
+            data: None,
+        }
+    }
+}
+```
+
+main.rs 中引用
+
+```
+mod api_result;
+```
+
+---
 
 # settings in config file
 
@@ -415,6 +444,109 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ---
 
+## create tiny code for original url
+
+notes:
+
+step 1: 数据库中创建一个短链接存储表，可参照DDL
+
+```
+CREATE TABLE IF NOT EXISTS `tiny_link` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `origin_url` varchar(1024) NOT NULL COMMENT '原始链接',
+  `tiny_code` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tiny_code` (`tiny_code`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='短链接'
+
+```
+
+---
+
+# Add SQLX to Connect Mysql Server
+
+notes:
+
+> SQLX是一个纯Rust构建的异步的SQL的crate。
+> SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
+
+[dependencies]增加
+
+```
+sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "mysql" ] }
+```
+
+main方法中增加
+
+```
+
+    let pool = MySqlPoolOptions::new()
+        .max_connections(5)
+        .connect("mysql://user:password@address/schema").await?;
+
+    let row: (i64,) = sqlx::query_as("SELECT ?")
+        .bind(150_i64)
+        .fetch_one(&pool).await?;
+
+    let ret = row.0;
+    println!("row is {ret}");
+
+```
+
+
+<!-- url = "mysql://admin:sdfcerts4amc@tiny.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny" -->
+
+- 这时候显示错误，这是因为连接数据库连接池和查询结果的异步动作await返回的错误类型，与 actix的启动的异步动作await的类型不同。我们需要修改一下返回值类型。
+- 修改actix启动，包装错误，并在结尾返回Result类型
+
+```
+
+async fn main() -> Result<(), sqlx::Error> {
+
+    // 这里连接数据库的代码 
+    // ...
+
+    // 这里是启动服务的代码
+    HttpServer::new(|| {
+        App::new()
+            .service(hello)
+            .service(echo)
+            .route("/hey", web::get().to(manual_hello))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await?;
+
+    Ok(())
+}
+
+```
+
+完成Mysql的连接
+
+```
+> cargo run
+   Compiling tiny-url v0.1.0 (/Users/huisheng/Documents/Workspace/Github/tiny-url)
+    Finished dev [unoptimized + debuginfo] target(s) in 5.75s
+     Running `target/debug/tiny-url`
+row is 150
+```
+
+---
+
+<!-- # vs Diesel
+
+notes:
+
+- Diesel 作为ORM使用体验非常好
+- 依赖gcc，需要在宿主机上安装连接器，比如Mysql的场合，需要libmysqlclient for the Mysql backend. 参照如下的说明。
+
+> https://diesel.rs/guides/getting-started
+
+- 构建镜像的场合，可以通过打包连接器或者安装连接器组件
+
+--- -->
+
 # load database pool while server is running
 
 notes:
@@ -486,54 +618,6 @@ async fn test_db_connect(data: Data<MySqlPool>) -> Result<i64, sqlx::Error> {
 > curl 127.0.0.1:8000
 150%                                  
 ```
----
-
-# a struct for api result 
-
-notes:
-
-写一个通用的结构体，提供标准化的数据返回结构，包括返回结果是否成功，成功时的数据，以及不成功时候的错误信息
-
-数据和错误均采用Option包装，Option和Result是Rust里的重要结构，这个思想在很多语言中都有，后面会考虑单独讲解。
-
-错误对象采用泛型，支持序列化的trait的泛型结构即可
-
-api_result.rs
-
-```
-use serde::Serialize;
-
-#[derive(Serialize)]
-pub struct ApiResult<T: Serialize> {
-    pub ok: bool,
-    pub err: Option<String>,
-    pub data: Option<T>,
-}
-
-impl<T: Serialize> ApiResult<T> {
-    pub fn success(r: Option<T>) -> ApiResult<T> {
-        ApiResult {
-            ok: true,
-            err: None,
-            data: r,
-        }
-    }
-    pub fn error<E: ToString>(err: E) -> ApiResult<T> {
-        ApiResult {
-            ok: false,
-            err: Some(err.to_string()),
-            data: None,
-        }
-    }
-}
-```
-
-main.rs 中引用
-
-```
-mod api_result;
-```
-
 ---
 
 # tiny api
