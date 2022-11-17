@@ -291,13 +291,11 @@ async fn get_all_links() -> impl Responder {
 
 notes:
 
-写一个通用的结构体，提供标准化的数据返回结构，包括返回结果是否成功，成功时的数据，以及不成功时候的错误信息
+我们添加一个通用的API返回值结构体，提供标准化的数据返回结构，包括返回结果是否成功，成功时的数据，以及不成功时候的错误信息
 
-数据和错误均采用Option包装，Option和Result是Rust里的重要结构，这个思想在很多语言中都有，后面会考虑单独讲解。
+返回值结构体使用泛型兼容不同数据类型，成功数据和错误使用Option包装，防止空值异常等错误。
 
-错误对象采用泛型，支持序列化的trait的泛型结构即可
-
-api_result.rs
+api/mod.rs中添加
 
 ```
 use serde::Serialize;
@@ -327,11 +325,36 @@ impl<T: Serialize> ApiResult<T> {
 }
 ```
 
-main.rs 中引用
+在根据短链接code返回原始URL动作中，增加未查询地址的错误处理。
 
 ```
-mod api_result;
+#[get("/{code}")]
+async fn get_from_link(path: Path<String>) -> impl Responder {
+    ...
+    if code == "test"{
+        let api_result:ApiResult<String> = ApiResult::error("404".to_string());
+        return HttpResponse::Ok().json(api_result);
+        // return HttpResponse::NotFound().finish();
+    }
+    ...
+}
 ```
+
+测试结果
+
+```
+curl --location --request POST 'http://127.0.0.1:8001/create' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "origin_url": "http://www.baidu.com"
+}'
+
+curl --location --request GET 'http://127.0.0.1:8080/links'
+
+curl --location --request GET 'http://127.0.0.1:8080/xxx'
+
+```
+
 
 ---
 
@@ -339,13 +362,10 @@ mod api_result;
 
 notes:
 
-到现在为止，完成了一个连接mysql的web服务器的基本功能
+一般来说，对于应用的环境配置，数据库的链接等设定操作，一个项目的开发环境和生产环境是不同的配置，为了安全会做环境隔离。
+这样的配置是不会通过硬编码设定，现在我们通过文件访问来获得响应的配置。
 
-现在开始，完成短链接的基本功能，并调整为一个应用程序的常见结构。
-
-增加服务的环境配置，增加数据库的链接。一般来说，一个项目的开发环境和生产环境是不同的配置，为了更安全和环境隔离，这样的配置是不会在硬编码，并且可以文件覆盖。通常会通过配置文件，或者环境变量提供差异化的配置。
-
-我们在src的同级别增加一个config文件夹，用来提供生产环境的路径替换。里面增加一个Settings.toml文件
+我们在src的同级别增加一个config文件夹，用来提供生产环境的路径替换。里面增加一个Settings.toml文件，修改文件的可访问地址和端口号。
 
 Settings.toml
 
@@ -443,6 +463,17 @@ async fn main() -> Result<(), sqlx::Error> {
 ```
 
 ---
+# 增加数据库连接
+
+notes: 
+
+现在开始增加数据库的连接部分，提供真正的短链接创建和跳转。
+
+我们选用的是MySQL作为演示。
+
+在添加数据库连接之前，需要在数据库中添加短链接存储表。
+
+MySQL的DDL文件，可参照屏幕上的文档。
 
 ## create tiny code for original url
 
@@ -467,15 +498,30 @@ CREATE TABLE IF NOT EXISTS `tiny_link` (
 
 notes:
 
+我们选用数据库连接组件是SQLX。
+
 > SQLX是一个纯Rust构建的异步的SQL的crate。
 > SQLX不是一个ORM，使用SQLX的ORM，推荐SeaORM。
 
-[dependencies]增加
+[dependencies]
 
 ```
-sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "mysql" ] }
-```
+im`
+``
+在依赖中添加SQLX的配置，注意需要引入actix运行时和MySQL的对应组件
 
+我们现在在配置文件中添加数据库的链接配置。
+
+Settings.toml
+
+```
+//...
+
+[database]
+url = "mysql://admin:sdfcerts4amc@tiny.cgrxfrwrkl7o.us-east-1.rds.amazonaws.com/tiny"
+pool=5
+
+```
 main方法中增加
 
 ```
@@ -620,74 +666,9 @@ async fn test_db_connect(data: Data<MySqlPool>) -> Result<i64, sqlx::Error> {
 ```
 ---
 
-# tiny api
+# 修改方法访问数据库
 
-notes:
-
-- create tiny code for original url
-- redirect to original url
-
-## create tiny code for original url
-
-notes:
-
-step 1: 数据库中创建一个短链接存储表，可参照DDL
-
-```
-CREATE TABLE IF NOT EXISTS `tiny_link` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `origin_url` varchar(1024) NOT NULL COMMENT '原始链接',
-  `tiny_code` varchar(10) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_tiny_code` (`tiny_code`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='短链接'
-
-```
-
-step 2: 根据url创建短链接code
-
-创建Post结构体ApiAddLink，这里使用Json结构，增加数据库存储结构，NewLink，
-
-如果使用ORM工具，通常会有另外的数据库类型实体映射，这里不进行扩展。
-
-在从接口类型到存储类型转换中，提供NanoId生成，这里根据业务需要调整生成code长度
-
-新建api.rs
-
-使用NanoId来创建短链接，具体NanoId的说明，参照
-
-> https://crates.io/crates/nanoid
-
-```
-[dependencies]
-nanoid = "0.4.0"
-```
-
-```
-use nanoid::nanoid;
-
-#[derive(Deserialize, Clone)]
-struct NewLink {
-    tiny_code: String,
-    original_url: String,
-}
-#[derive(Deserialize, Clone)]
-struct ApiAddLink {
-    original_url: String,
-}
-
-impl ApiAddLink {
-    fn to_new_link(self) -> NewLink {
-        NewLink {
-            original_url: self.original_url,
-            tiny_code: nanoid!(5),  // generate tiny code 
-        }
-    }
-}
-
-```
-
-step 3: 创建短链接的Handler
+notes: 修改创建方法
 
 ```
 #[post("/create")]
@@ -717,41 +698,9 @@ async fn insert_into_tiny_link(
 
 ```
 
-记得在main方法中，增加service引用
-
-```
-async fn main() -> Result<(), sqlx::Error> {
-    // 省略...
-    HttpServer::new(move || {
-        App::new()
-            .app_data(Data::new(pool.clone()))
-            .service(api::create_link) // 增加handler注册
-            .service(hello)
-            .service(echo)
-            .route("/hey", web::get().to(manual_hello))
-    })
-    .bind(&ip)?
-    .run()
-    .await?;
-
-    // 省略...
-}
-
-```
-
-step 4: Cargo Run 验证结果
-
-```
-> curl --request POST 'http://127.0.0.1:8000/create' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "origin_url": "http://www.baidu.com"
-}'
-{"ok":true,"err":null,"data":"weBUD"}%        
-```
 ---
 
-## redirect to original url
+## 修改重定向方法
 
 notes:
 
@@ -785,26 +734,7 @@ async fn get_original_url(data: Data<MySqlPool>, code: String) -> Result<String,
 }
 ```
 
-main方法中，增加service引用
 
-```
-async fn main() -> Result<(), sqlx::Error> {
-    // 省略...
-    HttpServer::new(move || {
-        App::new()
-            .app_data(Data::new(pool.clone()))
-            .service(api::create_link) 
-            .service(api::get_from_link) // 增加handler注册
-            .service(hello)
-            .service(echo)
-            .route("/hey", web::get().to(manual_hello))
-    })
-    .bind(&ip)?
-    .run()
-    .await?;
-
-    // 省略...
-}
 ```
 
 Cargo Run 验证结果
@@ -820,41 +750,22 @@ Cargo Run 验证结果
 
 notes:
 
-rust也有比较简单的web端的实现，支撑全栈工程师们的需求。
+这一节讲一下简单的web端的实现，支撑全栈工程师们的需求。
 
-这里推荐使用tera template， 纯Rust开发的一个web 
+当然，前后端的分离项目，我们会在后面的视频中推出。
+
+这里推荐使用tera template， 纯Rust开发的一个web页面组件 
 
 > https://tera.netlify.app/
 
-这里做个简单的欢迎页面。
+我们通过tera模板，做个简单的欢迎页面。
 
-Cargo.toml 引入crate
+首先在依赖中引入crate
 
 ```
 tera = { version = "1", default-features = false }
 lazy_static = "1.4.0"
 ```
-
-main.rs增加模板管理
-
-```
-#[macro_use]
-extern crate lazy_static;
-
-lazy_static! {
-    pub static ref TEMPLATES: Tera = {
-        let tera = match Tera::new("templates/**/*") { //模板解析地址
-            Ok(t) => t,
-            Err(e) => {
-                println!("Parsing error(s): {}", e);
-                ::std::process::exit(1);
-            }
-        };
-        tera
-    };
-}
-```
-
 增加templates目录，添加index.html，注意与模板初始化的地址保持一致。
 
 ```
@@ -885,6 +796,26 @@ index 内容
 
 ```
 
+main.rs增加模板管理
+
+```
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    pub static ref TEMPLATES: Tera = {
+        let tera = match Tera::new("templates/**/*") { //模板解析地址
+            Ok(t) => t,
+            Err(e) => {
+                println!("Parsing error(s): {}", e);
+                ::std::process::exit(1);
+            }
+        };
+        tera
+    };
+}
+```
+
 修改响应的Response，这里是Index
 
 ```
@@ -904,14 +835,14 @@ async fn index() -> impl Responder {
 
 现在启动后，已经看到使用模板修改后的页面。看起来与Java中的JSP有些相似。如果有更高的端的需求，比如性能，样式，模板等，也有很多解决方案。
 
-清理掉无效的handler和调试中的注释，现在一个短链接创建工具就做完了。
-
 ---
 # at the end
 
 notes:
 
-强调！！！！
+清理掉无效的引用，增加日志，一个短链接创建工具就做完了。
+
+这里强调一下！！！！
 
 请勿直接用于生产环境。一个项目的使用还需要网络管理，权限认证，性能测试等多个安全因素。还有更好的目录结构，静态优化，路径管理等可以持续优化。
 
