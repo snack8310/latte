@@ -3,28 +3,32 @@
 
 notes:
 
-嗨，大家好，今天我们做一期使用Rust开发前端web的技术分享。<!-- 周一的下午茶的技术分享视频 -->
+嗨，大家好，今天我们做一期使用Rust开发前端 Web App的技术分享。<!-- 周一的下午茶的技术分享视频 -->
 
-项目的服务端代码请参照视频 xxxx
+在视频中，我们通过一个简单的短链接生成功能，演示一个前端Web
+ APP开发。
 
-在视频中，我们通过一个简单的短链接创建功能演示一个Wasm项目。
+讲解Wasm（Webassembly技术），Yew框架，Trunk服务, Tailwind CSS等组件的基本用法。
 
-讲解Webassembly，Yew框架，Trunk服务, Tailwind CSS等组件的基本用法。
+项目依赖的服务端代码请参照
+项目的备注，https://github.com/snack8310/tiny-url，或之前的视频内容。
 
-关键字：Tiny，Rust，WASM， WebAssembly， Yew，Trunk，Tailwind
+关键字：Tiny，Rust，WASM，WebAssembly，Yew，Trunk，Tailwind
 
 ---
 
 # WebAssembly
 
-WebAssembly，缩写WASM，是一个字节码技术标准。简单的可以想象为类似JAVA，GO编译后生成的可运行的二进制片段。WebAssembly的浏览器支持分别在 // TODO
+WASM，WebAssembly的缩写，是一个主流浏览器可以解析的字节码技术标准。本视频中使用Rust生成WASM脚本。
+
+<!--简单的可以想象为类似JAVA，GO编译后生成的可运行的二进制片段。WebAssembly的浏览器支持分别在 // TODO
 它本身是个标准不是语言，支持通过多种高级语言，编译出来。提供浏览器执行。
 他的出现，是为了解决xxxx。
 他有高性能，安全，开放的特点。但相应的也有复杂，高级语言学习曲线等等问题。
+-->
+<!--本视频所有的内容，也是基于该技术，作为一个全栈工程师，Rust很好的具备了生成WebAssembly的特性。-->
 
-本视频所有的内容，也是基于该技术，作为一个全栈工程师，Rust很好的具备了生成WebAssembly的特性。
-
-我们需要先在本机的Rust的编译环境中添加WebAssembly
+我们需要先在本机的Rust的运行环境中添加WebAssembly支持
 
 ```
 rustup target add wasm32-unknown-unknown
@@ -34,16 +38,17 @@ rustup target add wasm32-unknown-unknown
 
 # Wasm Build Tools
 
-我们需要使用编译工具，讲Rust语言编译成WASM这种标准，常见的工具有，Trunk(https://trunkrs.dev/)，wasm-pack（https://rustwasm.github.io/）
+将Rust语言编译成WASM这种标准，常见的工具有，
+Trunk(https://trunkrs.dev/)，
+wasm-pack（https://rustwasm.github.io/）
 
 本视频中使用Trunk方式，需要在Cargo组件中添加Trunk工具
-
-在此之前，需要 在 ~/.cargo/config.toml
-这个使用全局的配置参数
 
 ```
 cargo install trunk
 ```
+新建一个Rust项目 tiny-url-web
+添加index.html
 
 ```index.html
 
@@ -72,7 +77,7 @@ cargo install trunk
 
 # Trunk 服务
 
-我们需要对Trunk做一些配置，比如部署目录，调用服务端的API调用进行代理，避免应用中，写具体的远程地址。
+我们可以对Trunk做一些配置，比如部署目录，调用服务端的API调用进行代理，避免应用中，写具体的远程地址。
 
 Trunk
 
@@ -86,11 +91,9 @@ dist = "dist"
 
 # WebAssembly Framework - Yew
 
-常见的框架有很多，例如 Sycamore, Yew, Percy等等。本视频选用Yew作为说明。
+常见的WASM Framwork有很多，例如 Sycamore, Yew, Percy等等。本视频选用Yew作为演示。
 
-Yew的特性有一些： TODO
-
-添加一下爱 Yew框架
+添加一下 Yew Framwork
 
 ```
 yew = "0.19"
@@ -128,15 +131,15 @@ pub enum Route {
     Home,
     #[at("/links")]
     Links,
-    #[at("/create_link")]
-    CreateLink,
+    #[at("/create")]
+    Create,
 }
 
 pub fn switch(route: &Route) -> Html {
     match route {
         Route::Home => html! { <h1>{ "Home" }</h1> },
         Route::Links=> html! {<Links/>},
-        Route::CreateLink=> html! {<CreateLink/>},
+        Route::Create=> html! {<CreateLink/>},
     }
 }
 
@@ -145,9 +148,9 @@ pub fn switch(route: &Route) -> Html {
 
 # Create/Links功能
 
-我们增加对应额 创建短链接的界面，和查询所有生成的短链接地址画面。
+我们增加对应的短链接地址创建和查询画面。
 
-我们创建对应的功能页面。
+添加pages
 
 ```
 pages
@@ -165,13 +168,26 @@ pub fn links() -> Html {
 }
 ```
 
+# log
+调试方便，我们需要增加 
+
+```
+log = "0.4.17"
+wasm-logger = "0.2"
+console_error_panic_hook = "0.1.7"
+```
+
+```main.rs
+    wasm_logger::init(wasm_logger::Config::default());
+    console_error_panic_hook::set_once();
+```
+
 # Tailwind CSS
 
-在Wasm中也可以使用流行的CSS框架构建样式，这里我选用对程序员比较友好的TailwindCSS框架
-https://tailwindcss.com/
+在Wasm中也可以使用流行的CSS框架构建画面样式，视频中使用TailwindCSS框架
 
 参照官网的步骤，安装
-
+https://tailwindcss.com/
 
 
 
@@ -207,15 +223,7 @@ module.exports = {
 npx tailwindcss -i ./styles/input.css -o ./styles/output.css --watch
 ```
 
-# log
-调试方便，我们需要增加 
-
-```
-log = "0.4.17"
-wasm-logger = "0.2"
-```
-
-# links
+links画面
 
 修改画面，可以使用https://play.tailwindcss.com/先调试画面
 
@@ -247,6 +255,13 @@ wasm-logger = "0.2"
             </div>
         </div>
 ```
+
+# 组件，Event，远程调用
+
+1. Component
+2. Event
+3. wasm_bindgen_futures
+4. use_state
 
 ```
 use super::TinyData;
@@ -344,7 +359,7 @@ fn tiny_url_props() -> Html {
 {onclick} 
 ```
 
-# 访问服务端
+访问服务端
 
 ```
 wasm-bindgen-futures = "0.4.30"
@@ -371,6 +386,8 @@ let tiny_data = tiny_data.clone();
             });
 ```
 
+# Trunk服务端调用代理
+
 ```Trunk.toml
 
 [[proxy]]
@@ -381,22 +398,34 @@ backend = "http://0.0.0.0:8001/"
 
 # create
 
-特别说明的是，需要添加tailwind组件
+特别说明的是，需要添加tailwind组件 /form
 
 ---
+
+# link_to
+
+```function_component(LinkTo)
+if let Err(_) = gloo_utils::window().location().set_href(&f.data) {
+                    log::info!("something went wrong");
+                }
+```
+
+---
+
 # at the end
 
 notes:
-
-清理掉无效的引用，增加日志，一个短链接创建工具就做完了。
 
 这里强调一下！！！！
 
 请勿直接用于生产环境。一个项目的使用还需要网络管理，权限认证，性能测试等多个安全因素。还有更好的目录结构，静态优化，路径管理等可以持续优化。
 
-本文以一个完整的web项目作为演示。
+本视频通过短链接的应用，体验Rust开发的Wasm Web App。
 
-所有代码保存在
-> https://github.com/snack8310/tiny-url
+如果有任何想法或建议，请直接留言给我，非常感谢大家的观看。
+
+<!-- 所有代码保存在
+> https://github.com/snack8310/tiny-url-web -->
+
 
 ---
