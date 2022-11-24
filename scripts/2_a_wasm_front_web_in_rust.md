@@ -199,7 +199,9 @@ output.css 动态生成的样式表
 
 npm install -D tailwindcss@latest @tailwindcss/forms  //速度慢，使用下面的镜像源
 
-npm --registry https://npmreg.proxy.ustclug.org/ install -D tailwindcss@latest @tailwindcss/forms 
+npm --registry https://npmreg.proxy.ustclug.org/ install -D tailwindcss@latest 
+
+npm --registry https://npmreg.proxy.ustclug.org/ install -D @tailwindcss/forms 
 
 
 ```
@@ -225,14 +227,15 @@ npx tailwindcss -i ./styles/input.css -o ./styles/output.css --watch
 
 links画面
 
-修改画面，可以使用https://play.tailwindcss.com/先调试画面
+现在修改短链接查询画面，可以使用官方调试工具先生成画面
+https://play.tailwindcss.com/
 
 ```html
         <div class="mx-auto max-w-7xl py-12 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-4xl">
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg ">
                     <div class="px-4 py-5 sm:px-6">
-                        <h3 class="text-lg font-medium leading-6 text-gray-900">{"短链接列表"}</h3>
+                        <h3 class="text-lg font-medium leading-6 text-gray-900">{"All Tiny Urls"}</h3>
                     </div>
                     <div class="border-t border-gray-200">
                         <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -250,18 +253,44 @@ links画面
                     </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
-                    <button type="button" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">{"查看所有短链接"}</button>
+                    <button type="button" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">{"Query"}</button>
                 </div>
             </div>
         </div>
 ```
 
-# 组件，Event，远程调用
+# 组件，Event
+
+我们将画面中的模块拆分，动态添加查询结果。
+
+拆分前，需要先添加一下序列化的组件serde
+
+```
+serde = { version = "1", features = ["derive"] }
+
+```
+
+增加一个结构体TinyUrls ，实现Properties trait，用来写入查询结果数组的整个列表。
+我们开发一个列表项的结构体TinyUrl 表示列表项的一行
+
+我们需要先在mod文件中，增加与服务端工程约定好的通用返回结构体。详细结构，请参照之前的视频。
+
+TinyData<T>
+
+增加一个函数组件模块，描述画面中动态添加部分的样式和数据
+function_component
+
+
+我们使用use_context 去观察画面数据变化
+
+创建一个use_state，用来响应函数组件中的值的变化。
+添加一个按钮点击动作。造一些假的数据
+
+
 
 1. Component
 2. Event
-3. wasm_bindgen_futures
-4. use_state
+3. use_state
 
 ```
 use super::TinyData;
@@ -359,7 +388,14 @@ fn tiny_url_props() -> Html {
 {onclick} 
 ```
 
-访问服务端
+# 服务端通信
+
+我们增加服务端的通信访问。
+
+我们使用Wasm bindgen futures构建Rust future通信机制，封装，
+异步或阻塞调用的程序。
+使用Gloo net组件， 提供WASM应用的HTTP调用
+
 
 ```
 wasm-bindgen-futures = "0.4.30"
@@ -386,6 +422,9 @@ let tiny_data = tiny_data.clone();
             });
 ```
 
+# 启动服务端应用
+参照之前的视频
+
 # Trunk服务端调用代理
 
 ```Trunk.toml
@@ -396,13 +435,64 @@ backend = "http://0.0.0.0:8001/"
 
 ```
 
+
+
 # create
 
-特别说明的是，需要添加tailwind组件 /form
+现在添加Create页面
+同样的，我们在Tailwind线上调试器中，调整样式，
+
+需要注意的是，需要在tailwind配置中添加的form组件
+
+```
+        <div class="mx-auto max-w-7xl py-12 sm:px-6 lg:px-8">
+            <div class="md:grid md:grid-cols-3 md:gap-6">
+                <div class="md:col-span-1">
+                <div class="px-4 sm:px-0">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">{"Hi"}</h3>
+                    <p class="mt-1 text-sm text-gray-600">{"Make a tiny Url"}</p>
+                </div>
+                </div>
+                <div class="mt-5 md:col-span-2 md:mt-0">
+                    <div class="shadow sm:overflow-hidden sm:rounded-md">
+                    <div class="space-y-6 bg-white px-4 py-5 sm:p-6">
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="col-span-2 sm:col-span-4">
+                        <label for="origin_url" class="block text-sm font-medium text-gray-700">{"Your Original URL"}</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <span class="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500">{"HTTP_PRE"}</span>
+                            <input type="text" name="origin_url" id="origin_url" class="block w-full flex-1 rounded-none rounded-r-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder={"www.example.com"} />
+                        </div>
+                        </div>
+                        <div class="col-span-6 mt-1 sm:col-span-4">
+                        <label for="email-address" class="block text-sm font-medium text-gray-700">{"Tiny URL:"}</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" value={}>
+                        </div>
+                    </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
+                        <button type="button" class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">{"Make Tiny URL"}</button>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+```
+
+启动watch应用，
+
+增加功能动作
+
+需要增加引用
+```
+wasm-bindgen = "0.2.67"
+```
 
 ---
 
 # link_to
+
+现在短链接地址是服务端的域名，我们让WASM APP的地址，也支持短链接的跳转
 
 ```function_component(LinkTo)
 if let Err(_) = gloo_utils::window().location().set_href(&f.data) {
@@ -416,13 +506,18 @@ if let Err(_) = gloo_utils::window().location().set_href(&f.data) {
 
 notes:
 
+到此，创建短连接的前端WASM WEB APP 已经全部开发完成。
+
+本视频通过短链接的创建，查询及跳转功能的开发，体验Rust开发的Wasm Web App。
+作为全栈工程师，Rust是个很好的开发前后端应用的工具。
+
 这里强调一下！！！！
 
-请勿直接用于生产环境。一个项目的使用还需要网络管理，权限认证，性能测试等多个安全因素。还有更好的目录结构，静态优化，路径管理等可以持续优化。
+项目仅供学习和参考，请勿直接用于生产环境。
 
-本视频通过短链接的应用，体验Rust开发的Wasm Web App。
+如果有任何想法或建议，请直接留言给我，
 
-如果有任何想法或建议，请直接留言给我，非常感谢大家的观看。
+非常感谢大家的观看。
 
 <!-- 所有代码保存在
 > https://github.com/snack8310/tiny-url-web -->
